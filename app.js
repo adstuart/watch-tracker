@@ -120,7 +120,7 @@ class WatchTracker {
             this.updateLastUpdateTime(Date.now());
         } catch (error) {
             console.error('Error refreshing watches:', error);
-            this.showError(error.message || 'Failed to load watches. This may be due to browser security settings or ad blockers blocking the request. Try disabling ad blockers or enabling demo mode in app.js.');
+            this.showError(error.message || 'Failed to load watches. This may be due to browser security settings or ad blockers. Try disabling ad blockers or enabling demo mode in app.js.');
         } finally {
             this.setLoading(false);
         }
@@ -227,6 +227,8 @@ class WatchTracker {
  */
 async function scrapeFalcoWatches(url) {
     // Use a CORS proxy to fetch the page
+    // Note: AllOrigins is a free public service and may be rate-limited
+    // For production use, consider deploying your own proxy or using a paid service
     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
     
     const response = await fetch(proxyUrl);
@@ -239,12 +241,13 @@ async function scrapeFalcoWatches(url) {
     const doc = parser.parseFromString(html, 'text/html');
     
     const watches = [];
+    const scrapedAt = Date.now(); // Single timestamp for the entire batch
     
     // Falco Watches uses a grid of product items
     // Find all product items - adjust selectors based on actual HTML structure
     const productItems = doc.querySelectorAll('.product-item, .grid-product, .product-card, [class*="product"]');
     
-    productItems.forEach((item) => {
+    productItems.forEach((item, index) => {
         try {
             // Try multiple possible selectors for name
             const nameElement = item.querySelector('.product-item__title, .product-title, .grid-product__title, h3, h2, .title, [class*="title"]');
@@ -269,7 +272,8 @@ async function scrapeFalcoWatches(url) {
                     price: price,
                     size: size || 'N/A',
                     source: 'Falco Watches',
-                    timestamp: Date.now()
+                    // Use batch timestamp plus index for consistent ordering
+                    timestamp: scrapedAt + index
                 });
             }
         } catch (err) {
@@ -284,7 +288,7 @@ async function scrapeFalcoWatches(url) {
         // Try to find any elements that might contain product information
         const allLinks = doc.querySelectorAll('a[href*="/products/"]');
         
-        allLinks.forEach((link) => {
+        allLinks.forEach((link, index) => {
             try {
                 const container = link.closest('[class*="product"], [class*="item"], .grid__item');
                 if (!container) return;
@@ -295,6 +299,8 @@ async function scrapeFalcoWatches(url) {
                 let name = nameElement ? nameElement.textContent.trim() : link.textContent.trim();
                 let price = priceElement ? priceElement.textContent.trim() : 'Price N/A';
                 
+                // Filter out navigation elements and other non-product links
+                // "quick" typically appears in "Quick View" buttons, not actual product names
                 if (name && !name.toLowerCase().includes('quick') && name.length > 3) {
                     const sizeMatch = name.match(/(\d+\.?\d*\s*mm)/i);
                     
@@ -303,7 +309,8 @@ async function scrapeFalcoWatches(url) {
                         price: price,
                         size: sizeMatch ? sizeMatch[1] : 'N/A',
                         source: 'Falco Watches',
-                        timestamp: Date.now()
+                        // Use batch timestamp plus index for consistent ordering
+                        timestamp: scrapedAt + index
                     });
                 }
             } catch (err) {
