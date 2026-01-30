@@ -7,7 +7,7 @@
 const WATCH_SOURCES = {
     falco: {
         name: 'Falco Watches',
-        url: 'https://falco-watches.com/products.json?limit=250',
+        url: 'https://falco-watches.com/collections/all/products.json?sort_by=created-descending',
         baseUrl: 'https://falco-watches.com',
         enabled: true,
         scraper: scrapeShopifyStore
@@ -31,16 +31,16 @@ const DEMO_MODE = false;
 
 // Sample data for demo mode
 const DEMO_WATCHES = [
-    { name: 'Falco Navigator GMT', price: '$425', size: '40mm', source: 'Falco Watches', timestamp: Date.now() - 1000 },
-    { name: 'Falco Explorer II', price: '$395', size: '42mm', source: 'Falco Watches', timestamp: Date.now() - 2000 },
-    { name: 'Falco Submariner Heritage', price: '$485', size: '40mm', source: 'Falco Watches', timestamp: Date.now() - 3000 },
-    { name: 'Falco Speedmaster', price: '$525', size: '38mm', source: 'Falco Watches', timestamp: Date.now() - 4000 },
-    { name: 'Falco Day-Date Classic', price: '$650', size: '36mm', source: 'Falco Watches', timestamp: Date.now() - 5000 },
-    { name: 'Falco Aqua Terra', price: '$445', size: '41mm', source: 'Falco Watches', timestamp: Date.now() - 6000 },
-    { name: 'Falco Pilot Chronograph', price: '$595', size: '43mm', source: 'Falco Watches', timestamp: Date.now() - 7000 },
-    { name: 'Falco Diver Pro', price: '$385', size: '44mm', source: 'Falco Watches', timestamp: Date.now() - 8000 },
-    { name: 'Falco Field Watch', price: '$325', size: '38mm', source: 'Falco Watches', timestamp: Date.now() - 9000 },
-    { name: 'Falco Dress Watch Elite', price: '$475', size: '40mm', source: 'Falco Watches', timestamp: Date.now() - 10000 }
+    { name: 'Falco Navigator GMT', price: '£425.00', size: '40mm', source: 'Falco Watches', timestamp: Date.now() - 1000 },
+    { name: 'Falco Explorer II', price: '£395.00', size: '42mm', source: 'Falco Watches', timestamp: Date.now() - 2000 },
+    { name: 'Falco Submariner Heritage', price: '£485.00', size: '40mm', source: 'Falco Watches', timestamp: Date.now() - 3000 },
+    { name: 'Falco Speedmaster', price: '£525.00', size: '38mm', source: 'Falco Watches', timestamp: Date.now() - 4000 },
+    { name: 'Falco Day-Date Classic', price: '£650.00', size: '36mm', source: 'Falco Watches', timestamp: Date.now() - 5000 },
+    { name: 'Falco Aqua Terra', price: '£445.00', size: '41mm', source: 'Falco Watches', timestamp: Date.now() - 6000 },
+    { name: 'Falco Pilot Chronograph', price: '£595.00', size: '43mm', source: 'Falco Watches', timestamp: Date.now() - 7000 },
+    { name: 'Falco Diver Pro', price: '£385.00', size: '44mm', source: 'Falco Watches', timestamp: Date.now() - 8000 },
+    { name: 'Falco Field Watch', price: '£325.00', size: '38mm', source: 'Falco Watches', timestamp: Date.now() - 9000 },
+    { name: 'Falco Dress Watch Elite', price: '£475.00', size: '40mm', source: 'Falco Watches', timestamp: Date.now() - 10000 }
 ];
 
 // Storage key for cached watches
@@ -152,15 +152,6 @@ class WatchTracker {
                     <div class="watch-name">${this.escapeHtml(watch.name)}</div>
                     <div class="watch-price">${this.escapeHtml(watch.price)}</div>
                 </div>
-                <div class="watch-details">
-                    ${watch.size ? `
-                        <div class="watch-detail">
-                            <span class="watch-detail-label">Size:</span>
-                            <span>${this.escapeHtml(watch.size)}</span>
-                        </div>
-                    ` : ''}
-                </div>
-                <span class="watch-source">${this.escapeHtml(watch.source)}</span>
             </div>
         `;
     }
@@ -263,7 +254,7 @@ async function scrapeShopifyStore(source) {
             if (isNaN(priceValue)) {
                 return; // Skip products with invalid prices
             }
-            const price = `$${priceValue.toFixed(2)}`;
+            const price = `£${priceValue.toFixed(2)}`;
             
             // Extract size - try multiple sources:
             // 1. First variant's option1 (often used for size)
