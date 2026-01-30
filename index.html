@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Watch Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⌚ Watch Tracker</h1>
+            <p class="subtitle">Latest watches from premium retailers</p>
+        </header>
+
+        <div class="controls">
+            <button id="refreshBtn" class="refresh-btn">
+                <span class="icon">↻</span> Refresh
+            </button>
+            <div id="lastUpdate" class="last-update"></div>
+        </div>
+
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading latest watches...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="watchList" class="watch-list"></div>
+
+        <footer>
+            <p>Updates on page refresh • Lightweight & Fast</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
