@@ -26,7 +26,7 @@ For each watch, the tracker displays:
 
 ## How It Works
 
-1. **Client-Side Scraping**: Uses a CORS proxy to fetch watch listings
+1. **Shopify JSON API**: Fetches data directly from Shopify's public `/products.json` endpoint (no CORS proxy needed!)
 2. **On-Demand Updates**: Refreshes data when you visit the page or click refresh
 3. **No Backend Required**: Runs entirely in the browser
 4. **Local Caching**: Stores the last fetch in localStorage for faster load times
@@ -42,7 +42,7 @@ Click the "Refresh" button to manually check for new watches.
 
 ### Demo Mode
 
-If you encounter CORS issues (common with browser security settings or ad blockers), you can enable demo mode to see the application with sample data:
+If you want to test the UI without live data, you can enable demo mode:
 
 1. Open `app.js`
 2. Change `const DEMO_MODE = false;` to `const DEMO_MODE = true;`
@@ -52,49 +52,67 @@ This will display 10 sample watches to demonstrate the UI and functionality.
 
 ## Adding New Watch Sources
 
-The architecture is designed to be easily expandable. To add a new watch source:
+The architecture is designed to be easily expandable.
+
+### For Shopify Stores (Recommended)
+
+Shopify stores have a public `/products.json` endpoint that requires no CORS proxy:
 
 1. **Add a new configuration** in `app.js`:
    ```javascript
    const WATCH_SOURCES = {
        falco: {
            name: 'Falco Watches',
-           url: 'https://falco-watches.com/collections/all',
+           url: 'https://falco-watches.com/products.json?limit=250',
+           baseUrl: 'https://falco-watches.com',
            enabled: true,
-           scraper: scrapeFalcoWatches
+           scraper: scrapeShopifyStore
        },
-       // Add your new source:
-       newSource: {
-           name: 'New Watch Retailer',
-           url: 'https://example.com/watches',
+       // Add another Shopify store:
+       newStore: {
+           name: 'New Shopify Store',
+           url: 'https://new-store.com/products.json?limit=250',
+           baseUrl: 'https://new-store.com',
            enabled: true,
-           scraper: scrapeNewSource
+           scraper: scrapeShopifyStore  // Reuse for any Shopify store!
        }
    };
    ```
 
-2. **Create a scraper function**:
+2. That's it! The existing scraper works for all Shopify stores.
+
+### For Non-Shopify Stores
+
+For stores that don't use Shopify, you'll need a custom scraper:
+
+1. **Add a new configuration** in `app.js`:
    ```javascript
-   async function scrapeNewSource(url) {
-       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+   newSource: {
+       name: 'Non-Shopify Store',
+       url: 'https://example.com/watches',
+       enabled: true,
+       scraper: scrapeNewSource
+   }
+   ```
+
+2. **Create a custom scraper function**:
+   ```javascript
+   async function scrapeNewSource(source) {
+       // Note: Non-Shopify stores may require a CORS proxy
+       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(source.url)}`;
        const response = await fetch(proxyUrl);
        const html = await response.text();
        const parser = new DOMParser();
        const doc = parser.parseFromString(html, 'text/html');
        
        const watches = [];
-       
        // Your scraping logic here
-       // Find product elements and extract:
-       // - name
-       // - price
-       // - size
+       // Extract: name, price, size, timestamp
+       // Use source.name for the source field
        
        return watches;
    }
    ```
-
-3. That's it! The application will automatically include watches from the new source.
 
 ## Technical Details
 
@@ -102,12 +120,18 @@ The architecture is designed to be easily expandable. To add a new watch source:
 - **HTML5** - Semantic structure
 - **CSS3** - Modern styling with gradients, animations, and flexbox
 - **Vanilla JavaScript** - No frameworks or libraries
-- **DOMParser API** - For parsing scraped HTML
+- **Shopify JSON API** - Direct product data access (no HTML parsing needed)
 - **LocalStorage API** - For caching watches
 - **Fetch API** - For retrieving watch listings
 
-### CORS Proxy
-Since browsers block cross-origin requests, the application uses the AllOrigins CORS proxy service (https://api.allorigins.win) to fetch watch listings. This is a free, public service that enables client-side scraping.
+### Why Shopify JSON API?
+
+Falco Watches (and many other stores) run on Shopify, which provides a public `/products.json` endpoint:
+- ✅ **No CORS proxy needed** - Direct browser access
+- ✅ **No bot protection** - Public API endpoint
+- ✅ **Structured JSON** - Clean, reliable data
+- ✅ **Fast & reliable** - Much better than HTML scraping
+- ✅ **Works on GitHub Pages** - No external dependencies
 
 ### Browser Compatibility
 Works in all modern browsers that support:
