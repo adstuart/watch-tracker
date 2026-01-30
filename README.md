@@ -64,15 +64,17 @@ Shopify stores have a public `/products.json` endpoint that requires no CORS pro
        falco: {
            name: 'Falco Watches',
            url: 'https://falco-watches.com/products.json?limit=250',
+           baseUrl: 'https://falco-watches.com',
            enabled: true,
-           scraper: scrapeFalcoWatches
+           scraper: scrapeShopifyStore
        },
        // Add another Shopify store:
        newStore: {
            name: 'New Shopify Store',
            url: 'https://new-store.com/products.json?limit=250',
+           baseUrl: 'https://new-store.com',
            enabled: true,
-           scraper: scrapeFalcoWatches  // Reuse for any Shopify store!
+           scraper: scrapeShopifyStore  // Reuse for any Shopify store!
        }
    };
    ```
@@ -95,9 +97,9 @@ For stores that don't use Shopify, you'll need a custom scraper:
 
 2. **Create a custom scraper function**:
    ```javascript
-   async function scrapeNewSource(url) {
+   async function scrapeNewSource(source) {
        // Note: Non-Shopify stores may require a CORS proxy
-       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+       const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(source.url)}`;
        const response = await fetch(proxyUrl);
        const html = await response.text();
        const parser = new DOMParser();
@@ -106,6 +108,7 @@ For stores that don't use Shopify, you'll need a custom scraper:
        const watches = [];
        // Your scraping logic here
        // Extract: name, price, size, timestamp
+       // Use source.name for the source field
        
        return watches;
    }

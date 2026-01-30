@@ -8,16 +8,18 @@ const WATCH_SOURCES = {
     falco: {
         name: 'Falco Watches',
         url: 'https://falco-watches.com/products.json?limit=250',
+        baseUrl: 'https://falco-watches.com',
         enabled: true,
-        scraper: scrapeFalcoWatches
+        scraper: scrapeShopifyStore
     }
     // Add more sources here in the future:
     // For other Shopify stores, use the same pattern:
     // store: {
     //     name: 'Store Name',
     //     url: 'https://store-url.com/products.json?limit=250',
+    //     baseUrl: 'https://store-url.com',
     //     enabled: true,
-    //     scraper: scrapeFalcoWatches  // Reuse for Shopify stores
+    //     scraper: scrapeShopifyStore  // Reuse for Shopify stores
     // }
 };
 
@@ -98,7 +100,7 @@ class WatchTracker {
                 for (const [key, source] of Object.entries(WATCH_SOURCES)) {
                     if (source.enabled) {
                         try {
-                            const watches = await source.scraper(source.url);
+                            const watches = await source.scraper(source);
                             allWatches.push(...watches);
                         } catch (err) {
                             console.error(`Error scraping ${source.name}:`, err);
@@ -222,14 +224,14 @@ class WatchTracker {
 }
 
 /**
- * Scraper for Shopify stores (including Falco Watches)
+ * Scraper for Shopify stores (works with any Shopify store)
  * Uses the Shopify JSON API - no CORS proxy needed!
- * @param {string} url - The Shopify products.json URL
+ * @param {Object} source - The source configuration object containing url, name, and baseUrl
  * @returns {Promise<Array>} Array of watch objects
  */
-async function scrapeFalcoWatches(url) {
+async function scrapeShopifyStore(source) {
     // Fetch directly from Shopify's JSON API - no CORS proxy needed
-    const response = await fetch(url);
+    const response = await fetch(source.url);
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -248,11 +250,19 @@ async function scrapeFalcoWatches(url) {
             // Extract basic product information
             const name = product.title;
             
-            // Get price from first variant (Shopify uses cents, convert to dollars)
+            // Validate product has required fields
+            if (!name || typeof name !== 'string' || name.trim().length === 0) {
+                return; // Skip products without valid names
+            }
+            
+            // Get price from first variant
             const variant = product.variants && product.variants[0];
-            if (!variant) return;
+            if (!variant || !variant.price) return;
             
             const priceValue = parseFloat(variant.price);
+            if (isNaN(priceValue)) {
+                return; // Skip products with invalid prices
+            }
             const price = `$${priceValue.toFixed(2)}`;
             
             // Extract size - try multiple sources:
@@ -264,8 +274,10 @@ async function scrapeFalcoWatches(url) {
             if (variant.option1 && variant.option1.match(/\d+\.?\d*\s*mm/i)) {
                 size = variant.option1;
             } else if (product.tags) {
-                // Tags can be a string or array
-                const tags = Array.isArray(product.tags) ? product.tags : product.tags.split(',').map(t => t.trim());
+                // Tags can be a string or array - normalize once
+                const tags = Array.isArray(product.tags) 
+                    ? product.tags 
+                    : product.tags.split(',').map(t => t.trim());
                 const sizeTag = tags.find(tag => tag.match(/\d+\.?\d*\s*mm/i));
                 if (sizeTag) {
                     size = sizeTag;
@@ -283,23 +295,19 @@ async function scrapeFalcoWatches(url) {
             // Convert created_at to timestamp for sorting
             const timestamp = product.created_at ? new Date(product.created_at).getTime() : Date.now();
             
-            // Build product URL from handle
-            const productUrl = product.handle ? `https://falco-watches.com/products/${product.handle}` : null;
-            
             watches.push({
                 name: name,
                 price: price,
                 size: size || 'N/A',
-                source: 'Falco Watches',
-                timestamp: timestamp,
-                url: productUrl
+                source: source.name,
+                timestamp: timestamp
             });
         } catch (err) {
             console.error('Error parsing product:', err, product);
         }
     });
     
-    console.log(`Fetched ${watches.length} watches from Shopify JSON API`);
+    console.log(`Fetched ${watches.length} watches from ${source.name} via Shopify JSON API`);
     
     return watches;
 }
@@ -307,20 +315,21 @@ async function scrapeFalcoWatches(url) {
 /**
  * Template for adding new Shopify store scrapers
  * 
- * For Shopify stores, you can reuse the scrapeFalcoWatches function:
+ * For Shopify stores, you can reuse the scrapeShopifyStore function:
  * 
  * newStore: {
  *     name: 'New Store Name',
  *     url: 'https://store-url.com/products.json?limit=250',
+ *     baseUrl: 'https://store-url.com',
  *     enabled: true,
- *     scraper: scrapeFalcoWatches  // Reuse for any Shopify store
+ *     scraper: scrapeShopifyStore  // Reuse for any Shopify store
  * }
  * 
  * For non-Shopify stores, create a custom scraper:
  * 
- * async function scrapeNonShopifyStore(url) {
+ * async function scrapeNonShopifyStore(source) {
  *     // You'll need a CORS proxy for non-Shopify stores
- *     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+ *     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(source.url)}`;
  *     const response = await fetch(proxyUrl);
  *     const html = await response.text();
  *     const parser = new DOMParser();
@@ -328,7 +337,8 @@ async function scrapeFalcoWatches(url) {
  *     
  *     const watches = [];
  *     // Add your scraping logic here
- *     // Look for product items and extract: name, price, size, timestamp
+ *     // Extract: name, price, size, timestamp
+ *     // Return watches with source.name as the source
  *     
  *     return watches;
  * }
