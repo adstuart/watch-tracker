@@ -300,7 +300,7 @@ async function scrapeShopifyStore(source) {
  *     
  *     const watches = [];
  *     // Add your scraping logic here
- *     // Extract: name, price, size, timestamp
+ *     // Extract: name, price, timestamp
  *     // Return watches with source.name as the source
  *     
  *     return watches;
