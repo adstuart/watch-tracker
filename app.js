@@ -7,7 +7,7 @@
 const WATCH_SOURCES = {
     falco: {
         name: 'Falco Watches',
-        url: 'https://falco-watches.com/products.json?limit=250',
+        url: 'https://falco-watches.com/collections/all/products.json?sort_by=created-descending',
         baseUrl: 'https://falco-watches.com',
         enabled: true,
         scraper: scrapeShopifyStore
@@ -31,16 +31,16 @@ const DEMO_MODE = false;
 
 // Sample data for demo mode
 const DEMO_WATCHES = [
-    { name: 'Falco Navigator GMT', price: '$425', size: '40mm', source: 'Falco Watches', timestamp: Date.now() - 1000 },
-    { name: 'Falco Explorer II', price: '$395', size: '42mm', source: 'Falco Watches', timestamp: Date.now() - 2000 },
-    { name: 'Falco Submariner Heritage', price: '$485', size: '40mm', source: 'Falco Watches', timestamp: Date.now() - 3000 },
-    { name: 'Falco Speedmaster', price: '$525', size: '38mm', source: 'Falco Watches', timestamp: Date.now() - 4000 },
-    { name: 'Falco Day-Date Classic', price: '$650', size: '36mm', source: 'Falco Watches', timestamp: Date.now() - 5000 },
-    { name: 'Falco Aqua Terra', price: '$445', size: '41mm', source: 'Falco Watches', timestamp: Date.now() - 6000 },
-    { name: 'Falco Pilot Chronograph', price: '$595', size: '43mm', source: 'Falco Watches', timestamp: Date.now() - 7000 },
-    { name: 'Falco Diver Pro', price: '$385', size: '44mm', source: 'Falco Watches', timestamp: Date.now() - 8000 },
-    { name: 'Falco Field Watch', price: '$325', size: '38mm', source: 'Falco Watches', timestamp: Date.now() - 9000 },
-    { name: 'Falco Dress Watch Elite', price: '$475', size: '40mm', source: 'Falco Watches', timestamp: Date.now() - 10000 }
+    { name: 'Falco Navigator GMT', price: '£425.00', source: 'Falco Watches', timestamp: Date.now() - 1000 },
+    { name: 'Falco Explorer II', price: '£395.00', source: 'Falco Watches', timestamp: Date.now() - 2000 },
+    { name: 'Falco Submariner Heritage', price: '£485.00', source: 'Falco Watches', timestamp: Date.now() - 3000 },
+    { name: 'Falco Speedmaster', price: '£525.00', source: 'Falco Watches', timestamp: Date.now() - 4000 },
+    { name: 'Falco Day-Date Classic', price: '£650.00', source: 'Falco Watches', timestamp: Date.now() - 5000 },
+    { name: 'Falco Aqua Terra', price: '£445.00', source: 'Falco Watches', timestamp: Date.now() - 6000 },
+    { name: 'Falco Pilot Chronograph', price: '£595.00', source: 'Falco Watches', timestamp: Date.now() - 7000 },
+    { name: 'Falco Diver Pro', price: '£385.00', source: 'Falco Watches', timestamp: Date.now() - 8000 },
+    { name: 'Falco Field Watch', price: '£325.00', source: 'Falco Watches', timestamp: Date.now() - 9000 },
+    { name: 'Falco Dress Watch Elite', price: '£475.00', source: 'Falco Watches', timestamp: Date.now() - 10000 }
 ];
 
 // Storage key for cached watches
@@ -147,20 +147,11 @@ class WatchTracker {
 
     createWatchHTML(watch, index) {
         return `
-            <div class="watch-item" style="animation-delay: ${index * 0.05}s">
+            <div class="watch-item">
                 <div class="watch-header">
                     <div class="watch-name">${this.escapeHtml(watch.name)}</div>
                     <div class="watch-price">${this.escapeHtml(watch.price)}</div>
                 </div>
-                <div class="watch-details">
-                    ${watch.size ? `
-                        <div class="watch-detail">
-                            <span class="watch-detail-label">Size:</span>
-                            <span>${this.escapeHtml(watch.size)}</span>
-                        </div>
-                    ` : ''}
-                </div>
-                <span class="watch-source">${this.escapeHtml(watch.source)}</span>
             </div>
         `;
     }
@@ -263,34 +254,7 @@ async function scrapeShopifyStore(source) {
             if (isNaN(priceValue)) {
                 return; // Skip products with invalid prices
             }
-            const price = `$${priceValue.toFixed(2)}`;
-            
-            // Extract size - try multiple sources:
-            // 1. First variant's option1 (often used for size)
-            // 2. Tags that contain "mm"
-            // 3. Title that contains size pattern
-            let size = null;
-            
-            if (variant.option1 && variant.option1.match(/\d+\.?\d*\s*mm/i)) {
-                size = variant.option1;
-            } else if (product.tags) {
-                // Tags can be a string or array - normalize once
-                const tags = Array.isArray(product.tags) 
-                    ? product.tags 
-                    : product.tags.split(',').map(t => t.trim());
-                const sizeTag = tags.find(tag => tag.match(/\d+\.?\d*\s*mm/i));
-                if (sizeTag) {
-                    size = sizeTag;
-                }
-            }
-            
-            // Fallback: try to extract from title
-            if (!size && name) {
-                const sizeMatch = name.match(/(\d+\.?\d*\s*mm)/i);
-                if (sizeMatch) {
-                    size = sizeMatch[1];
-                }
-            }
+            const price = `£${priceValue.toFixed(2)}`;
             
             // Convert created_at to timestamp for sorting
             const timestamp = product.created_at ? new Date(product.created_at).getTime() : Date.now();
@@ -298,7 +262,6 @@ async function scrapeShopifyStore(source) {
             watches.push({
                 name: name,
                 price: price,
-                size: size || 'N/A',
                 source: source.name,
                 timestamp: timestamp
             });
@@ -337,7 +300,7 @@ async function scrapeShopifyStore(source) {
  *     
  *     const watches = [];
  *     // Add your scraping logic here
- *     // Extract: name, price, size, timestamp
+ *     // Extract: name, price, timestamp
  *     // Return watches with source.name as the source
  *     
  *     return watches;
