@@ -7,16 +7,17 @@
 const WATCH_SOURCES = {
     falco: {
         name: 'Falco Watches',
-        url: 'https://falco-watches.com/collections/all',
+        url: 'https://falco-watches.com/products.json?limit=250',
         enabled: true,
         scraper: scrapeFalcoWatches
     }
     // Add more sources here in the future:
-    // rolex: {
-    //     name: 'Rolex',
-    //     url: '...',
+    // For other Shopify stores, use the same pattern:
+    // store: {
+    //     name: 'Store Name',
+    //     url: 'https://store-url.com/products.json?limit=250',
     //     enabled: true,
-    //     scraper: scrapeRolexWatches
+    //     scraper: scrapeFalcoWatches  // Reuse for Shopify stores
     // }
 };
 
@@ -221,118 +222,104 @@ class WatchTracker {
 }
 
 /**
- * Scraper for Falco Watches
- * @param {string} url - The URL to scrape
+ * Scraper for Shopify stores (including Falco Watches)
+ * Uses the Shopify JSON API - no CORS proxy needed!
+ * @param {string} url - The Shopify products.json URL
  * @returns {Promise<Array>} Array of watch objects
  */
 async function scrapeFalcoWatches(url) {
-    // Use a CORS proxy to fetch the page
-    // Note: AllOrigins is a free public service and may be rate-limited
-    // For production use, consider deploying your own proxy or using a paid service
-    const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-    
-    const response = await fetch(proxyUrl);
+    // Fetch directly from Shopify's JSON API - no CORS proxy needed
+    const response = await fetch(url);
     if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
     }
     
-    const html = await response.text();
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
+    const data = await response.json();
+    
+    if (!data.products || !Array.isArray(data.products)) {
+        throw new Error('Invalid response format from Shopify API');
+    }
     
     const watches = [];
-    const scrapedAt = Date.now(); // Single timestamp for the entire batch
     
-    // Falco Watches uses a grid of product items
-    // Find all product items - adjust selectors based on actual HTML structure
-    const productItems = doc.querySelectorAll('.product-item, .grid-product, .product-card, [class*="product"]');
-    
-    productItems.forEach((item, index) => {
+    // Process each product from the Shopify API
+    data.products.forEach((product) => {
         try {
-            // Try multiple possible selectors for name
-            const nameElement = item.querySelector('.product-item__title, .product-title, .grid-product__title, h3, h2, .title, [class*="title"]');
-            const priceElement = item.querySelector('.price, .product-price, [class*="price"]');
+            // Extract basic product information
+            const name = product.title;
             
-            // Extract size from the name or description if available
-            let name = nameElement ? nameElement.textContent.trim() : null;
-            let price = priceElement ? priceElement.textContent.trim() : null;
+            // Get price from first variant (Shopify uses cents, convert to dollars)
+            const variant = product.variants && product.variants[0];
+            if (!variant) return;
+            
+            const priceValue = parseFloat(variant.price);
+            const price = `$${priceValue.toFixed(2)}`;
+            
+            // Extract size - try multiple sources:
+            // 1. First variant's option1 (often used for size)
+            // 2. Tags that contain "mm"
+            // 3. Title that contains size pattern
             let size = null;
             
-            // Try to extract size from name (e.g., "40mm", "42mm")
-            if (name) {
+            if (variant.option1 && variant.option1.match(/\d+\.?\d*\s*mm/i)) {
+                size = variant.option1;
+            } else if (product.tags) {
+                // Tags can be a string or array
+                const tags = Array.isArray(product.tags) ? product.tags : product.tags.split(',').map(t => t.trim());
+                const sizeTag = tags.find(tag => tag.match(/\d+\.?\d*\s*mm/i));
+                if (sizeTag) {
+                    size = sizeTag;
+                }
+            }
+            
+            // Fallback: try to extract from title
+            if (!size && name) {
                 const sizeMatch = name.match(/(\d+\.?\d*\s*mm)/i);
                 if (sizeMatch) {
                     size = sizeMatch[1];
                 }
             }
             
-            if (name && price) {
-                watches.push({
-                    name: name,
-                    price: price,
-                    size: size || 'N/A',
-                    source: 'Falco Watches',
-                    // Use batch timestamp plus index for consistent ordering
-                    timestamp: scrapedAt + index
-                });
-            }
+            // Convert created_at to timestamp for sorting
+            const timestamp = product.created_at ? new Date(product.created_at).getTime() : Date.now();
+            
+            // Build product URL from handle
+            const productUrl = product.handle ? `https://falco-watches.com/products/${product.handle}` : null;
+            
+            watches.push({
+                name: name,
+                price: price,
+                size: size || 'N/A',
+                source: 'Falco Watches',
+                timestamp: timestamp,
+                url: productUrl
+            });
         } catch (err) {
-            console.error('Error parsing product item:', err);
+            console.error('Error parsing product:', err, product);
         }
     });
     
-    // If no watches found with the above selectors, try a more generic approach
-    if (watches.length === 0) {
-        console.warn('No watches found with primary selectors, trying fallback...');
-        
-        // Try to find any elements that might contain product information
-        const allLinks = doc.querySelectorAll('a[href*="/products/"]');
-        
-        allLinks.forEach((link, index) => {
-            try {
-                const container = link.closest('[class*="product"], [class*="item"], .grid__item');
-                if (!container) return;
-                
-                const nameElement = container.querySelector('[class*="title"], h3, h2, .product-title');
-                const priceElement = container.querySelector('[class*="price"]');
-                
-                let name = nameElement ? nameElement.textContent.trim() : link.textContent.trim();
-                let price = priceElement ? priceElement.textContent.trim() : 'Price N/A';
-                
-                // Filter out navigation elements and other non-product links
-                // "quick" typically appears in "Quick View" buttons, not actual product names
-                if (name && !name.toLowerCase().includes('quick') && name.length > 3) {
-                    const sizeMatch = name.match(/(\d+\.?\d*\s*mm)/i);
-                    
-                    watches.push({
-                        name: name,
-                        price: price,
-                        size: sizeMatch ? sizeMatch[1] : 'N/A',
-                        source: 'Falco Watches',
-                        // Use batch timestamp plus index for consistent ordering
-                        timestamp: scrapedAt + index
-                    });
-                }
-            } catch (err) {
-                console.error('Error parsing fallback item:', err);
-            }
-        });
-    }
+    console.log(`Fetched ${watches.length} watches from Shopify JSON API`);
     
-    // Remove duplicates based on name
-    const uniqueWatches = watches.filter((watch, index, self) =>
-        index === self.findIndex((w) => w.name === watch.name)
-    );
-    
-    console.log(`Scraped ${uniqueWatches.length} watches from Falco Watches`);
-    
-    return uniqueWatches;
+    return watches;
 }
 
 /**
- * Template for adding new scrapers
+ * Template for adding new Shopify store scrapers
  * 
- * async function scrapeNewSource(url) {
+ * For Shopify stores, you can reuse the scrapeFalcoWatches function:
+ * 
+ * newStore: {
+ *     name: 'New Store Name',
+ *     url: 'https://store-url.com/products.json?limit=250',
+ *     enabled: true,
+ *     scraper: scrapeFalcoWatches  // Reuse for any Shopify store
+ * }
+ * 
+ * For non-Shopify stores, create a custom scraper:
+ * 
+ * async function scrapeNonShopifyStore(url) {
+ *     // You'll need a CORS proxy for non-Shopify stores
  *     const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
  *     const response = await fetch(proxyUrl);
  *     const html = await response.text();
@@ -341,7 +328,7 @@ async function scrapeFalcoWatches(url) {
  *     
  *     const watches = [];
  *     // Add your scraping logic here
- *     // Look for product items and extract name, price, size
+ *     // Look for product items and extract: name, price, size, timestamp
  *     
  *     return watches;
  * }
