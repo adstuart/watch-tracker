@@ -256,8 +256,9 @@ async function scrapeShopifyStore(source) {
             }
             const price = `£${priceValue.toFixed(2)}`;
             
-            // Convert created_at to timestamp for sorting
-            const timestamp = product.created_at ? new Date(product.created_at).getTime() : Date.now();
+            // Convert published_at to timestamp for sorting (matches Shopify's "created-descending" sort)
+            const timestamp = product.published_at ? new Date(product.published_at).getTime() : 
+                              (product.created_at ? new Date(product.created_at).getTime() : Date.now());
             
             watches.push({
                 name: name,
