@@ -7,7 +7,7 @@
 const WATCH_SOURCES = {
     falco: {
         name: 'Falco Watches',
-        url: 'https://falco-watches.com/collections/all/products.json?sort_by=created-descending',
+        url: 'https://falco-watches.com/collections/all/products.json?limit=250',
         baseUrl: 'https://falco-watches.com',
         enabled: true,
         scraper: scrapeShopifyStore
