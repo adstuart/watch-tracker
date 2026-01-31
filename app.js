@@ -277,7 +277,8 @@ async function scrapeShopifyStore(source) {
             const dateString = product.published_at || product.created_at;
             let timestamp;
             if (dateString) {
-                timestamp = new Date(dateString).getTime();
+                const parsedTime = new Date(dateString).getTime();
+                timestamp = !isNaN(parsedTime) ? parsedTime : Date.now() - index;
             } else {
                 // Fallback: use index-based ordering
                 timestamp = Date.now() - index;
