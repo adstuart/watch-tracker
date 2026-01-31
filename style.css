@@ -120,7 +120,7 @@ header h1 {
 }
 
 .watch-item {
-    padding: 12px 15px;
+    padding: 8px 12px;
     border-bottom: 1px solid #e0e0e0;
     transition: background-color 0.15s ease;
 }
