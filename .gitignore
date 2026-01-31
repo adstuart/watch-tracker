@@ -11,6 +11,8 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.log
+test.html
+demo.html
 
 # Node modules (if added in future)
 node_modules/

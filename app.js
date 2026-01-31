@@ -262,6 +262,8 @@ async function scrapeShopifyStore(source) {
             
             // Use index to preserve API order (first item = most recent)
             // Subtract index from current time so first item has highest timestamp
+            // Note: We don't need stable timestamps across scrapes since we refresh all data
+            // The goal is to preserve the API's ordering, not track changes between scrapes
             const timestamp = Date.now() - index;
             
             watches.push({
