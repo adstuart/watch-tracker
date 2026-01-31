@@ -23,9 +23,6 @@ const WATCH_SOURCES = {
     // }
 };
 
-// Maximum number of watches to display
-const MAX_WATCHES = 10;
-
 // Demo mode - set to true to use sample data instead of live scraping
 const DEMO_MODE = false;
 
@@ -113,10 +110,9 @@ class WatchTracker {
                 throw new Error('No watches found from any source. This may be due to CORS restrictions or network issues.');
             }
 
-            // Sort by date (newest first) and take top MAX_WATCHES
+            // Sort by date (newest first) - show all available watches
             this.watches = allWatches
-                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0))
-                .slice(0, MAX_WATCHES);
+                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
 
             this.displayWatches();
             this.saveToCache();
@@ -250,6 +246,11 @@ async function scrapeShopifyStore(source) {
                 return; // Skip products without valid names
             }
             
+            // Filter out sold watches (case-insensitive check for "sold" in title)
+            if (name.toLowerCase().includes('sold')) {
+                return; // Skip watches with "sold" in title
+            }
+            
             // Get price from first variant
             const variant = product.variants && product.variants[0];
             if (!variant || !variant.price) return;
@@ -258,13 +259,29 @@ async function scrapeShopifyStore(source) {
             if (isNaN(priceValue)) {
                 return; // Skip products with invalid prices
             }
+            
+            // Filter out watches with price £0.00 or £0
+            if (priceValue === 0) {
+                return; // Skip watches with zero price
+            }
+            
+            // Filter out watches that are unavailable
+            if (variant.available === false) {
+                return; // Skip unavailable watches
+            }
+            
             const price = `£${priceValue.toFixed(2)}`;
             
-            // Use index to preserve API order (first item = most recent)
-            // Subtract index from current time so first item has highest timestamp
-            // Note: We don't need stable timestamps across scrapes since we refresh all data
-            // The goal is to preserve the API's ordering, not track changes between scrapes
-            const timestamp = Date.now() - index;
+            // Use actual publish/creation date from Shopify API
+            // Use published_at if available, fallback to created_at
+            const dateString = product.published_at || product.created_at;
+            let timestamp;
+            if (dateString) {
+                timestamp = new Date(dateString).getTime();
+            } else {
+                // Fallback: use index-based ordering
+                timestamp = Date.now() - index;
+            }
             
             watches.push({
                 name: name,
