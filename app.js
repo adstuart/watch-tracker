@@ -146,10 +146,14 @@ class WatchTracker {
     }
 
     createWatchHTML(watch, index) {
+        const nameHtml = watch.url 
+            ? `<a href="${this.escapeHtml(watch.url)}" target="_blank" rel="noopener noreferrer" class="watch-link">${this.escapeHtml(watch.name)}</a>`
+            : this.escapeHtml(watch.name);
+        
         return `
             <div class="watch-item">
                 <div class="watch-header">
-                    <div class="watch-name">${this.escapeHtml(watch.name)}</div>
+                    <div class="watch-name">${nameHtml}</div>
                     <div class="watch-price">${this.escapeHtml(watch.price)}</div>
                 </div>
             </div>
@@ -236,7 +240,7 @@ async function scrapeShopifyStore(source) {
     const watches = [];
     
     // Process each product from the Shopify API
-    data.products.forEach((product) => {
+    data.products.forEach((product, index) => {
         try {
             // Extract basic product information
             const name = product.title;
@@ -256,15 +260,16 @@ async function scrapeShopifyStore(source) {
             }
             const price = `£${priceValue.toFixed(2)}`;
             
-            // Convert published_at to timestamp for sorting (matches Shopify's "created-descending" sort)
-            const timestamp = product.published_at ? new Date(product.published_at).getTime() : 
-                              (product.created_at ? new Date(product.created_at).getTime() : Date.now());
+            // Use index to preserve API order (first item = most recent)
+            // Subtract index from current time so first item has highest timestamp
+            const timestamp = Date.now() - index;
             
             watches.push({
                 name: name,
                 price: price,
                 source: source.name,
-                timestamp: timestamp
+                timestamp: timestamp,
+                url: `${source.baseUrl}/products/${product.handle}`
             });
         } catch (err) {
             console.error('Error parsing product:', err, product);
