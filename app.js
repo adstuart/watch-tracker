@@ -246,14 +246,14 @@ async function scrapeShopifyStore(source) {
                 return; // Skip products without valid names
             }
             
+            // Get price from first variant
+            const variant = product.variants && product.variants[0];
+            if (!variant || !variant.price) return;
+            
             // Filter out sold watches (case-insensitive check for "sold" in title)
             if (name.toLowerCase().includes('sold')) {
                 return; // Skip watches with "sold" in title
             }
-            
-            // Get price from first variant
-            const variant = product.variants && product.variants[0];
-            if (!variant || !variant.price) return;
             
             const priceValue = parseFloat(variant.price);
             if (isNaN(priceValue)) {
@@ -273,7 +273,7 @@ async function scrapeShopifyStore(source) {
             const price = `£${priceValue.toFixed(2)}`;
             
             // Use actual publish/creation date from Shopify API
-            // Use published_at if available, fallback to created_at
+            // Use published_at if available, fallback to created_at, then to index-based ordering
             const dateString = product.published_at || product.created_at;
             let timestamp;
             if (dateString) {
